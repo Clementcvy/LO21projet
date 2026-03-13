@@ -1,0 +1,3 @@
+Pour compiler vos fichier cpp et h, 
+il suffit de vérifier qu'ils sont bien présent dans le Makefile,
+puis de taper make dans le terminal et ./prog
