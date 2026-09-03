@@ -17,8 +17,12 @@ namespace harmonies
                 return report;
             }
 
-            std::size_t landscapeScore = LandscapeScoreCalculator(*board);
-            report.addTreeScore(landscapeScore); 
+            model::ScoreReport landscapeReport = LandscapeScoreReport(*board);
+            report.addTreeScore(landscapeReport.getTreeScore());
+            report.addMountainScore(landscapeReport.getMountainScore());
+            report.addFieldScore(landscapeReport.getFieldScore());
+            report.addBuildingScore(landscapeReport.getBuildingScore());
+            report.addWaterScore(landscapeReport.getWaterScore());
 
             std::size_t totalAnimalScore = 0;
             const model::PlayerCardCollection *animalCards = player.getAnimalCards();

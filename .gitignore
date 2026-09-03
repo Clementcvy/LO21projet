@@ -10,6 +10,7 @@
 prog
 
 # IDE and metadata
+.DS_Store
 .vscode/
 .qtcreator/
 compile_commands.json

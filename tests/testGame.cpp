@@ -1,4 +1,5 @@
 #include <iostream>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -47,6 +48,42 @@ namespace
                 board.placeToken(target, cell.type);
             }
         }
+    }
+
+    bool buildPatternOnFirstValidAnchor(harmonies::model::PersonalBoard &board,
+                                        const harmonies::model::Pattern &pattern,
+                                        harmonies::utils::HexCoord &anchor)
+    {
+        const std::map<harmonies::utils::HexCoord, harmonies::model::BoardCell> &boardCells = board.getCells();
+        const std::vector<harmonies::model::PatternCell> &patternCells = pattern.getCells();
+
+        for (std::map<harmonies::utils::HexCoord, harmonies::model::BoardCell>::const_iterator it = boardCells.begin();
+             it != boardCells.end();
+             ++it)
+        {
+            bool fits = true;
+            for (std::size_t i = 0; i < patternCells.size(); ++i)
+            {
+                const harmonies::utils::HexCoord target =
+                    harmonies::utils::addPatternOffset(it->first, patternCells[i].offset);
+                if (!board.contains(target))
+                {
+                    fits = false;
+                    break;
+                }
+            }
+
+            if (!fits)
+            {
+                continue;
+            }
+
+            anchor = it->first;
+            buildAnimalPatternOnBoard(board, anchor, pattern);
+            return true;
+        }
+
+        return false;
     }
 }
 
@@ -183,12 +220,16 @@ int main()
               "Once a nature spirit card has been chosen, the player should not choose again",
               failures);
 
-        const TokenType spiritTokenType =
-            game.getPlayers()[0]->getNatureSpiritCard(0)->getPattern().getCells()[0].type;
-        HexCoord spiritAnchor(0, 0);
-        game.getPlayers()[0]->getBoard()->placeToken(spiritAnchor, spiritTokenType);
+        HexCoord spiritAnchor;
+        const bool spiritPatternBuilt = buildPatternOnFirstValidAnchor(
+            *game.getPlayers()[0]->getBoard(),
+            game.getPlayers()[0]->getNatureSpiritCard(0)->getPattern(),
+            spiritAnchor);
 
-        check(game.placeNatureSpiritCube(spiritAnchor),
+        check(spiritPatternBuilt,
+              "The chosen nature spirit card pattern should fit somewhere on the board",
+              failures);
+        check(spiritPatternBuilt && game.placeNatureSpiritCube(spiritAnchor),
               "The chosen nature spirit card should be able to place its cube when the pattern is satisfied",
               failures);
         check(game.getPlayers()[0]->getBoard()->getCell(spiritAnchor) != nullptr &&
@@ -228,6 +269,9 @@ int main()
         check(game.placeTokenOnBoard(HexCoord(0, 1), TokenType::BrownEarth),
               "The first player should be able to place the third mandatory token",
               failures);
+        check(game.chooseNatureSpiritCard(0),
+              "The first player should be able to choose a nature spirit card before ending their first turn",
+              failures);
         check(game.endTurn(),
               "After completing mandatory placements, the first player should be able to end their turn explicitly",
               failures);
@@ -244,6 +288,9 @@ int main()
               failures);
         check(game.placeTokenOnBoard(HexCoord(0, 1), TokenType::BrownEarth),
               "The second player should be able to place the third mandatory token",
+              failures);
+        check(game.chooseNatureSpiritCard(0),
+              "The second player should be able to choose a nature spirit card before ending their first turn",
               failures);
         check(game.endTurn(),
               "After completing mandatory placements, the second player should be able to end their turn explicitly",
@@ -280,10 +327,15 @@ int main()
               "An unplaced chosen nature spirit card should count in the limit of 4 active cards",
               failures);
 
-        buildAnimalPatternOnBoard(*player->getBoard(),
-                                  HexCoord(0, 0),
-                                  player->getNatureSpiritCard(0)->getPattern());
-        check(game.placeNatureSpiritCube(HexCoord(0, 0)),
+        HexCoord spiritAnchor;
+        const bool spiritPatternBuilt = buildPatternOnFirstValidAnchor(
+            *player->getBoard(),
+            player->getNatureSpiritCard(0)->getPattern(),
+            spiritAnchor);
+        check(spiritPatternBuilt,
+              "The chosen nature spirit pattern should fit somewhere on the board",
+              failures);
+        check(spiritPatternBuilt && game.placeNatureSpiritCube(spiritAnchor),
               "The chosen nature spirit card should be placeable to free its active card slot",
               failures);
         check(game.takeVisibleAnimalCard(0),

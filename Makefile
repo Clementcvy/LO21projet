@@ -1,248 +1,76 @@
-# --- Compiler Settings ---
+# Compiler and flags used by the console build and automated tests.
 CXX = g++
-CXXFLAGS = -Wall -Wextra -std=c++11 -Iinclude
+CXXFLAGS = -Wall -Wextra -std=c++17 -Iinclude
 
-# --- Target and Folders ---
+# Name of the console executable produced by `make`.
 TARGET = prog
+
+# Source folders used by the Makefile.
 SRC_DIR = src
 TEST_DIR = tests
 
-# --- Source Discovery ---
-SRCS = $(wildcard $(SRC_DIR)/*.cpp) \
-       $(wildcard $(SRC_DIR)/model/*.cpp) \
-       $(wildcard $(SRC_DIR)/utils/*.cpp) \
-       $(wildcard $(SRC_DIR)/core/*.cpp) \
-       $(wildcard $(SRC_DIR)/rules/*.cpp) \
-       $(wildcard $(SRC_DIR)/scoring/*.cpp) \
-       $(wildcard $(SRC_DIR)/ui/*.cpp)
+# Production sources for the console application.
+APP_SRCS = $(wildcard $(SRC_DIR)/*.cpp) \
+           $(wildcard $(SRC_DIR)/model/*.cpp) \
+           $(wildcard $(SRC_DIR)/utils/*.cpp) \
+           $(wildcard $(SRC_DIR)/core/*.cpp) \
+           $(wildcard $(SRC_DIR)/rules/*.cpp) \
+           $(wildcard $(SRC_DIR)/scoring/*.cpp) \
+           $(wildcard $(SRC_DIR)/ui/*.cpp)
 
-OBJS = $(SRCS:.cpp=.o)
+APP_OBJS = $(APP_SRCS:.cpp=.o)
 
-TEST_HEXCOORD = $(TEST_DIR)/testHexCoord
-TEST_BOARDCELL = $(TEST_DIR)/testBoardCell
-TEST_PERSONALBOARD = $(TEST_DIR)/testPersonalBoard
-TEST_TOKENBAG = $(TEST_DIR)/testTokenBag
-TEST_TOKENSLOT = $(TEST_DIR)/testTokenSlot
-TEST_CENTRALBOARD = $(TEST_DIR)/testCentralBoard
-TEST_PATTERN = $(TEST_DIR)/testPattern
-TEST_ANIMALCARD = $(TEST_DIR)/testAnimalCard
-TEST_ANIMALCARDSCORECALCULATOR = $(TEST_DIR)/testAnimalCardScoreCalculator
-TEST_ANIMALCARDDECK = $(TEST_DIR)/testAnimalCardDeck
-TEST_NATURESPIRITCARD = $(TEST_DIR)/testNatureSpiritCard
-TEST_NATURESPIRITDECK = $(TEST_DIR)/testNatureSpiritDeck
-TEST_NATURESPIRITSCORECALCULATOR = $(TEST_DIR)/testNatureSpiritScoreCalculator
-TEST_PLAYER = $(TEST_DIR)/testPlayer
-TEST_PLAYERCARDCOLLECTION = $(TEST_DIR)/testPlayerCardCollection
-TEST_GAMECONFIG = $(TEST_DIR)/testGameConfig
-TEST_SCOREREPORT = $(TEST_DIR)/testScoreReport
-TEST_PLACEMENTVALIDATOR = $(TEST_DIR)/testPlacementValidator
-TEST_STACKRULE = $(TEST_DIR)/testStackRule
-TEST_LANDSCAPESCORECALCULATOR = $(TEST_DIR)/testLandscapeScoreCalculator
-TEST_ENDGAMECHECKER = $(TEST_DIR)/testEndGameChecker
-TEST_PATTERNMATCHER = $(TEST_DIR)/testPatternMatcher
-TEST_TURNMANAGER = $(TEST_DIR)/testTurnManager
-TEST_ANIMALCUBEPLACEMENTSERVICE = $(TEST_DIR)/testAnimalCubePlacementService
-TEST_NATURESPIRITPLACEMENTSERVICE = $(TEST_DIR)/testNatureSpiritPlacementService
-TEST_SLOTSELECTIONSERVICE = $(TEST_DIR)/testSlotSelectionService
-TEST_TOKENPLACEMENTSERVICE = $(TEST_DIR)/testTokenPlacementService
-TEST_GAME = $(TEST_DIR)/testGame
-TEST_CONSOLERENDERER = $(TEST_DIR)/testConsoleRenderer
+# Test binaries reuse the production code, but exclude src/main.cpp because each
+# test file provides its own main function.
+TEST_SUPPORT_SRCS = $(filter-out $(SRC_DIR)/main.cpp,$(APP_SRCS))
+
+# testSetupMenu is interactive, so it is built and run only through make test-setup.
 TEST_SETUPMENU = $(TEST_DIR)/testSetupMenu
-TEST_SCORECALCULATOR = $(TEST_DIR)/testScoreCalculator
-TEST_SOLOSCOREEVALUATOR = $(TEST_DIR)/testSoloScoreEvaluator
-TEST_SOLORULES = $(TEST_DIR)/testSoloRules
+TEST_SRCS = $(filter-out $(TEST_DIR)/testSetupMenu.cpp,$(wildcard $(TEST_DIR)/*.cpp))
+TESTS = $(patsubst %.cpp,%,$(TEST_SRCS))
 
-TESTS = $(TEST_HEXCOORD) $(TEST_BOARDCELL) $(TEST_PERSONALBOARD) $(TEST_TOKENBAG) $(TEST_TOKENSLOT) $(TEST_CENTRALBOARD) $(TEST_PATTERN) $(TEST_ANIMALCARD) $(TEST_ANIMALCARDSCORECALCULATOR) $(TEST_ANIMALCARDDECK) $(TEST_NATURESPIRITCARD) $(TEST_NATURESPIRITDECK) $(TEST_NATURESPIRITSCORECALCULATOR) $(TEST_PLAYER) $(TEST_PLAYERCARDCOLLECTION) $(TEST_GAMECONFIG) $(TEST_SCOREREPORT) $(TEST_PLACEMENTVALIDATOR) $(TEST_STACKRULE) $(TEST_LANDSCAPESCORECALCULATOR) $(TEST_ENDGAMECHECKER) $(TEST_PATTERNMATCHER) $(TEST_TURNMANAGER) $(TEST_ANIMALCUBEPLACEMENTSERVICE) $(TEST_NATURESPIRITPLACEMENTSERVICE) $(TEST_SLOTSELECTIONSERVICE) $(TEST_TOKENPLACEMENTSERVICE) $(TEST_GAME) $(TEST_CONSOLERENDERER) $(TEST_SCORECALCULATOR) $(TEST_SOLOSCOREEVALUATOR) $(TEST_SOLORULES)
+# Declare command-style targets that do not correspond to generated files.
+.PHONY: all clean run test test-setup
 
-# --- Build Rules ---
+# Default target: build the console application.
 all: $(TARGET)
 
-$(TARGET): $(OBJS)
+$(TARGET): $(APP_OBJS)
 	@echo "Linking $(TARGET)..."
-	$(CXX) $(OBJS) -o $(TARGET)
+	$(CXX) $(APP_OBJS) -o $(TARGET)
 
+# Generic rule: compile any .cpp file into the matching .o file.
 %.o: %.cpp
 	@echo "Compiling $<..."
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# --- Utility Rules ---
-clean:
-	@echo "Cleaning up..."
-	rm -f $(OBJS) $(TARGET)
-	rm -f $(TESTS) $(TEST_SETUPMENU)
-
-.PHONY: all clean run test test-setup
-
+# Build and run the console application.
 run: $(TARGET)
 	./$(TARGET)
 
-# --- Tests ---
-$(TEST_HEXCOORD): $(TEST_DIR)/testHexCoord.cpp $(SRC_DIR)/utils/HexCoord.cpp
+# Build a non-interactive test binary with the shared production sources.
+$(TEST_DIR)/%: $(TEST_DIR)/%.cpp $(TEST_SUPPORT_SRCS)
 	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $< $(TEST_SUPPORT_SRCS) -o $@
 
-$(TEST_BOARDCELL): $(TEST_DIR)/testBoardCell.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_PERSONALBOARD): $(TEST_DIR)/testPersonalBoard.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_TOKENBAG): $(TEST_DIR)/testTokenBag.cpp $(SRC_DIR)/model/TokenBag.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_TOKENSLOT): $(TEST_DIR)/testTokenSlot.cpp $(SRC_DIR)/model/TokenSlot.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_CENTRALBOARD): $(TEST_DIR)/testCentralBoard.cpp $(SRC_DIR)/model/CentralBoard.cpp $(SRC_DIR)/model/TokenSlot.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_PATTERN): $(TEST_DIR)/testPattern.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_ANIMALCARD): $(TEST_DIR)/testAnimalCard.cpp $(SRC_DIR)/model/AnimalCard.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_ANIMALCARDSCORECALCULATOR): $(TEST_DIR)/testAnimalCardScoreCalculator.cpp $(SRC_DIR)/scoring/AnimalCardScoreCalculator.cpp $(SRC_DIR)/model/AnimalCard.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_ANIMALCARDDECK): $(TEST_DIR)/testAnimalCardDeck.cpp $(SRC_DIR)/model/AnimalCardDeck.cpp $(SRC_DIR)/model/AnimalCard.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_NATURESPIRITCARD): $(TEST_DIR)/testNatureSpiritCard.cpp $(SRC_DIR)/model/NatureSpiritCard.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_NATURESPIRITDECK): $(TEST_DIR)/testNatureSpiritDeck.cpp $(SRC_DIR)/model/NatureSpiritDeck.cpp $(SRC_DIR)/model/NatureSpiritCard.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_NATURESPIRITSCORECALCULATOR): $(TEST_DIR)/testNatureSpiritScoreCalculator.cpp $(SRC_DIR)/scoring/NatureSpiritScoreCalculator.cpp $(SRC_DIR)/model/NatureSpiritCard.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_PLAYER): $(TEST_DIR)/testPlayer.cpp $(SRC_DIR)/model/Player.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_PLAYERCARDCOLLECTION): $(TEST_DIR)/testPlayerCardCollection.cpp $(SRC_DIR)/model/PlayerCardCollection.cpp $(SRC_DIR)/model/AnimalCard.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_GAMECONFIG): $(TEST_DIR)/testGameConfig.cpp $(SRC_DIR)/model/GameConfig.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_SCOREREPORT): $(TEST_DIR)/testScoreReport.cpp $(SRC_DIR)/model/ScoreReport.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_PLACEMENTVALIDATOR): $(TEST_DIR)/testPlacementValidator.cpp $(SRC_DIR)/rules/PlacementValidator.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_STACKRULE): $(TEST_DIR)/testStackRule.cpp $(SRC_DIR)/rules/StackRule.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_LANDSCAPESCORECALCULATOR): $(TEST_DIR)/testLandscapeScoreCalculator.cpp $(SRC_DIR)/scoring/LandscapeScoreCalculator.cpp $(SRC_DIR)/rules/StackRule.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_ENDGAMECHECKER): $(TEST_DIR)/testEndGameChecker.cpp $(SRC_DIR)/rules/EndGameChecker.cpp $(SRC_DIR)/model/Player.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/model/TokenBag.cpp $(SRC_DIR)/utils/hexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_PATTERNMATCHER): $(TEST_DIR)/testPatternMatcher.cpp $(SRC_DIR)/rules/PatternMatcher.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/utils/hexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_TURNMANAGER): $(TEST_DIR)/testTurnManager.cpp $(SRC_DIR)/core/TurnManager.cpp $(SRC_DIR)/model/Player.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_ANIMALCUBEPLACEMENTSERVICE): $(TEST_DIR)/testAnimalCubePlacementService.cpp $(SRC_DIR)/core/AnimalCubePlacementService.cpp $(SRC_DIR)/rules/PatternMatcher.cpp $(SRC_DIR)/model/AnimalCard.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/utils/hexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_NATURESPIRITPLACEMENTSERVICE): $(TEST_DIR)/testNatureSpiritPlacementService.cpp $(SRC_DIR)/core/NatureSpiritPlacementService.cpp $(SRC_DIR)/rules/PatternMatcher.cpp $(SRC_DIR)/model/NatureSpiritCard.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/utils/hexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_SLOTSELECTIONSERVICE): $(TEST_DIR)/testSlotSelectionService.cpp $(SRC_DIR)/core/SlotSelectionService.cpp $(SRC_DIR)/model/CentralBoard.cpp $(SRC_DIR)/model/TokenSlot.cpp $(SRC_DIR)/model/TokenBag.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_TOKENPLACEMENTSERVICE): $(TEST_DIR)/testTokenPlacementService.cpp $(SRC_DIR)/core/TokenPlacementService.cpp $(SRC_DIR)/rules/PlacementValidator.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_GAME): $(TEST_DIR)/testGame.cpp $(SRC_DIR)/core/Game.cpp $(SRC_DIR)/core/DefaultDeckFactory.cpp $(SRC_DIR)/core/TurnManager.cpp $(SRC_DIR)/core/SlotSelectionService.cpp $(SRC_DIR)/core/TokenPlacementService.cpp $(SRC_DIR)/core/AnimalCubePlacementService.cpp $(SRC_DIR)/core/NatureSpiritPlacementService.cpp $(SRC_DIR)/rules/EndGameChecker.cpp $(SRC_DIR)/rules/PlacementValidator.cpp $(SRC_DIR)/rules/PatternMatcher.cpp $(SRC_DIR)/rules/StackRule.cpp $(SRC_DIR)/scoring/LandscapeScoreCalculator.cpp $(SRC_DIR)/scoring/AnimalCardScoreCalculator.cpp $(SRC_DIR)/scoring/NatureSpiritScoreCalculator.cpp $(SRC_DIR)/model/Player.cpp $(SRC_DIR)/model/PlayerCardCollection.cpp $(SRC_DIR)/model/AnimalCardDeck.cpp $(SRC_DIR)/model/NatureSpiritDeck.cpp $(SRC_DIR)/model/AnimalCard.cpp $(SRC_DIR)/model/NatureSpiritCard.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/model/GameConfig.cpp $(SRC_DIR)/model/TokenBag.cpp $(SRC_DIR)/model/CentralBoard.cpp $(SRC_DIR)/model/TokenSlot.cpp $(SRC_DIR)/model/ScoreReport.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_SCORECALCULATOR): $(TEST_DIR)/testScoreCalculator.cpp $(SRC_DIR)/scoring/ScoreCalculator.cpp $(SRC_DIR)/model/Player.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/PlayerCardCollection.cpp $(SRC_DIR)/scoring/LandscapeScoreCalculator.cpp $(SRC_DIR)/scoring/AnimalCardScoreCalculator.cpp $(SRC_DIR)/scoring/NatureSpiritScoreCalculator.cpp $(SRC_DIR)/rules/StackRule.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/utils/HexCoord.cpp $(SRC_DIR)/model/ScoreReport.cpp $(SRC_DIR)/model/AnimalCard.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/model/NatureSpiritCard.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_SOLOSCOREEVALUATOR): $(TEST_DIR)/testSoloScoreEvaluator.cpp $(SRC_DIR)/scoring/SoloScoreEvaluator.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_SOLORULES): $(TEST_DIR)/testSoloRules.cpp $(SRC_DIR)/core/Game.cpp $(SRC_DIR)/core/DefaultDeckFactory.cpp $(SRC_DIR)/core/TurnManager.cpp $(SRC_DIR)/core/SlotSelectionService.cpp $(SRC_DIR)/core/TokenPlacementService.cpp $(SRC_DIR)/core/AnimalCubePlacementService.cpp $(SRC_DIR)/core/NatureSpiritPlacementService.cpp $(SRC_DIR)/rules/EndGameChecker.cpp $(SRC_DIR)/rules/PlacementValidator.cpp $(SRC_DIR)/rules/PatternMatcher.cpp $(SRC_DIR)/rules/StackRule.cpp $(SRC_DIR)/scoring/LandscapeScoreCalculator.cpp $(SRC_DIR)/scoring/AnimalCardScoreCalculator.cpp $(SRC_DIR)/scoring/NatureSpiritScoreCalculator.cpp $(SRC_DIR)/model/Player.cpp $(SRC_DIR)/model/PlayerCardCollection.cpp $(SRC_DIR)/model/AnimalCardDeck.cpp $(SRC_DIR)/model/NatureSpiritDeck.cpp $(SRC_DIR)/model/AnimalCard.cpp $(SRC_DIR)/model/NatureSpiritCard.cpp $(SRC_DIR)/model/Pattern.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/model/GameConfig.cpp $(SRC_DIR)/model/TokenBag.cpp $(SRC_DIR)/model/CentralBoard.cpp $(SRC_DIR)/model/TokenSlot.cpp $(SRC_DIR)/model/ScoreReport.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
-$(TEST_CONSOLERENDERER): $(TEST_DIR)/testConsoleRenderer.cpp $(SRC_DIR)/ui/ConsoleRenderer.cpp $(SRC_DIR)/model/CentralBoard.cpp $(SRC_DIR)/model/TokenSlot.cpp $(SRC_DIR)/model/PersonalBoard.cpp $(SRC_DIR)/model/BoardCell.cpp $(SRC_DIR)/model/Player.cpp $(SRC_DIR)/model/ScoreReport.cpp $(SRC_DIR)/utils/HexCoord.cpp
-	@echo "Building $@..."
-	$(CXX) $(CXXFLAGS) $^ -o $@
-
+# Build the interactive setup menu test separately.
 $(TEST_SETUPMENU): $(TEST_DIR)/testSetupMenu.cpp $(SRC_DIR)/ui/SetupMenu.cpp $(SRC_DIR)/model/GameConfig.cpp
 	@echo "Building $@..."
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
+# Run the interactive setup menu test manually.
 test-setup: $(TEST_SETUPMENU)
 	./$(TEST_SETUPMENU)
 
+# Build and run all automated, non-interactive tests.
 test: $(TESTS)
 	@echo "Running tests..."
-	./$(TEST_HEXCOORD)
-	./$(TEST_BOARDCELL)
-	./$(TEST_PERSONALBOARD)
-	./$(TEST_TOKENBAG)
-	./$(TEST_TOKENSLOT)
-	./$(TEST_CENTRALBOARD)
-	./$(TEST_PATTERN)
-	./$(TEST_ANIMALCARD)
-	./$(TEST_ANIMALCARDSCORECALCULATOR)
-	./$(TEST_ANIMALCARDDECK)
-	./$(TEST_NATURESPIRITCARD)
-	./$(TEST_NATURESPIRITDECK)
-	./$(TEST_NATURESPIRITSCORECALCULATOR)
-	./$(TEST_PLAYER)
-	./$(TEST_PLAYERCARDCOLLECTION)
-	./$(TEST_GAMECONFIG)
-	./$(TEST_SCOREREPORT)
-	./$(TEST_PLACEMENTVALIDATOR)
-	./$(TEST_STACKRULE)
-	./$(TEST_LANDSCAPESCORECALCULATOR)
-	./$(TEST_ENDGAMECHECKER)
-	./$(TEST_PATTERNMATCHER)
-	./$(TEST_TURNMANAGER)
-	./$(TEST_ANIMALCUBEPLACEMENTSERVICE)
-	./$(TEST_NATURESPIRITPLACEMENTSERVICE)
-	./$(TEST_SLOTSELECTIONSERVICE)
-	./$(TEST_TOKENPLACEMENTSERVICE)
-	./$(TEST_GAME)
-	./$(TEST_CONSOLERENDERER)
-	./$(TEST_SCORECALCULATOR)
-	./$(TEST_SOLOSCOREEVALUATOR)
-	./$(TEST_SOLORULES)
+	@for test in $(TESTS); do \
+		echo "== $$test =="; \
+		./$$test || exit $$?; \
+	done
+
+# Remove generated binaries and object files.
+clean:
+	@echo "Cleaning up..."
+	rm -f $(APP_OBJS) $(TARGET) $(TESTS) $(TEST_SETUPMENU)
